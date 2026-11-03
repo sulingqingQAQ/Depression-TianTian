@@ -133,7 +133,7 @@ public abstract class MentalStatusMixin implements BlockBreakMentalHealCooldownC
     )
     private double wrapMentalHeal(
             MentalStatus instance, double value, Operation<Double> original,
-            @Local(name = "string", argsOnly = true) String string
+            @Local(argsOnly = true, ordinal = 0) String string
     ) {
         int noveltyThreshold = DTTConfig.getInstance().getServerConfig().commonConfig.noveltyThreshold;
         if (noveltyThreshold == 0) return original.call(instance, value);

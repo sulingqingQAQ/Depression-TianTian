@@ -55,7 +55,7 @@ public class MentalStatusMixin {
                     remap = true
             )
     )
-    private void PTSDFormEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(name = "string", argsOnly = true) String key) {
+    private void PTSDFormEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(argsOnly = true, ordinal = 0) String key) {
         PTSDContext context = PTSDContext.of(key, id.toString());
         PTSDEvent.PTSD_FORM_EVENT.invoker().onPTSDFormed(player, context, PTSDLevel.LATENT);
         original.call(player, id);
@@ -111,7 +111,7 @@ public class MentalStatusMixin {
                     remap = true
             )
     )
-    private void PTSDDisperseEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(name = "id", argsOnly = true) String key) {
+    private void PTSDDisperseEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(argsOnly = true, ordinal = 0) String key) {
         PTSDContext context = PTSDContext.of(key, id.toString());
         PTSDEvent.PTSD_DISPERSE_EVENT.invoker().onPTSDDisperse(player, context);
         original.call(player, id);

@@ -10,7 +10,7 @@ import grainalcohol.dtt.util.StringUtil;
 import net.depression.client.ClientActionbarHint;
 import net.depression.client.DepressionClient;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,21 +28,21 @@ public class ClientActionbarHintMixin {
     @Unique private static final Random RANDOM = new Random();
 
     @Inject(method = "receivePTSDFormPacket", at = @At("HEAD"), cancellable = true)
-    private void enhancedPTSDFormMessage(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
+    private void enhancedPTSDFormMessage(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
         if (DTTConfig.getInstance().getClientConfig().messageDisplayConfig.enhancedPTSDFormationMessage) {
             ci.cancel();
         }
     }
 
     @Inject(method = "receivePTSDDispersePacket", at = @At("HEAD"), cancellable = true)
-    private void enhancedPTSDDisperseMessage(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
+    private void enhancedPTSDDisperseMessage(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
         if (DTTConfig.getInstance().getClientConfig().messageDisplayConfig.enhancedPTSDDispersalMessage) {
             ci.cancel();
         }
     }
 
     @Inject(method = "receivePTSDRemissionPacket", at = @At("HEAD"), cancellable = true)
-    private void enhancedPTSDRemissionMessage(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
+    private void enhancedPTSDRemissionMessage(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext, CallbackInfo ci) {
         if (DTTConfig.getInstance().getClientConfig().messageDisplayConfig.enhancedPTSDRemissionMessage) {
             ci.cancel();
         }

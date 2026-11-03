@@ -48,7 +48,7 @@ public class PTSDManagerMixin {
                     remap = true
             )
     )
-    private void PTSDRemissionEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(name = "key", argsOnly = true) String key) {
+    private void PTSDRemissionEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(argsOnly = true, ordinal = 0) String key) {
         // PTSD缓解事件
         PTSDContext context = PTSDContext.of(key, id.toString());
         PTSDEvent.PTSD_REMISSION_EVENT.invoker().onPTSDRemission(player, context, PTSDHelper.getPTSDLevel(player, key));

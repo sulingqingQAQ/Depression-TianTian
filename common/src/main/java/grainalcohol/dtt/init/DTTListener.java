@@ -124,7 +124,7 @@ public class DTTListener {
         PlayerEvent.PLAYER_JOIN.register(player -> {
             ServerConfig serverConfig = DTTConfig.getInstance().getServerConfig();
 
-            DTTNetwork.CHANNEL.sendToPlayer(player, new ServerConfigPacket(
+            DTTNetwork.sendToPlayer(player, new ServerConfigPacket(
                     serverConfig.combatConfig.saferCatatonicStupor,
                     serverConfig.commonConfig.disableMentalTraitSelectScreen
             ));

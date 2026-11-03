@@ -49,6 +49,6 @@ public class ClientMentalIllnessMixin {
     )
     private void onOpenEyes(GuiGraphics context, int x, int y, CallbackInfo ci) {
         // 赋值为false后表示开始睁眼动作
-        if (!isCloseEye) DTTNetwork.CHANNEL.sendToServer(new OpenEyesEventPacket());
+        if (!isCloseEye) DTTNetwork.sendToServer(new OpenEyesEventPacket());
     }
 }
