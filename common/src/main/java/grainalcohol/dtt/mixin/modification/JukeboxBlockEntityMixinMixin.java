@@ -24,7 +24,8 @@ public class JukeboxBlockEntityMixinMixin {
             method = "@MixinSquared:Handler",
             constant = @Constant(longValue = 20L)
     )
-    private long modifyJukeboxMentalHealInterval(long constant) {
+    // 1.21.1 主包的 JukeboxBlockEntityMixin.tick 跟随原版 static ticker 改成了 static handler，挂在它上面的注入也必须是 static
+    private static long modifyJukeboxMentalHealInterval(long constant) {
         return DTTConfig.getInstance().getServerConfig().mentalHealConfig.nearbyJukeboxIntervalTicks;
     }
 
@@ -37,7 +38,8 @@ public class JukeboxBlockEntityMixinMixin {
             at = @At("HEAD"),
             cancellable = true
     )
-    private void injectJukeboxTick(Level level, BlockPos blockPos, BlockState blockState, CallbackInfo originalCi, CallbackInfo ci) {
+    // 目标 handler：static tick(Level, BlockPos, BlockState, JukeboxBlockEntity, CallbackInfo)V，参数照抄后再接自己的 CallbackInfo
+    private static void injectJukeboxTick(Level level, BlockPos blockPos, BlockState blockState, JukeboxBlockEntity jukebox, CallbackInfo originalCi, CallbackInfo ci) {
         // 原版逻辑是EVERYONE模式
         if (DTTConfig.getInstance().getServerConfig().mentalHealConfig.nearbyJukeboxMode != ServerConfig.NearbyAnythingHealMode.EVERYONE) {
             ci.cancel();
