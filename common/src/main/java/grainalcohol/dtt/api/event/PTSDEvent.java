@@ -1,0 +1,107 @@
+package grainalcohol.dtt.api.event;
+
+import dev.architectury.event.Event;
+import dev.architectury.event.EventFactory;
+import dev.architectury.event.EventResult;
+import grainalcohol.dtt.api.wrapper.PTSDLevel;
+import net.minecraft.server.level.ServerPlayer;
+
+/**
+ * 对于PTSD的发作、形成、消散（康复）和缓解，
+ * depression使用的名词分别为“onset”、“form”、“disperse”和“remission”。<br>
+ * 但是不知道为啥缓解用了名词，本模组对此不做修正，沿用即可。
+ */
+public interface PTSDEvent {
+    /**
+     * PTSD发作事件，该事件可以被取消
+     * @see PTSDOnsetEvent#onPTSDOnset(ServerPlayer, PTSDLevel, double)
+     */
+    Event<PTSDOnsetEvent> PTSD_ONSET_EVENT = EventFactory.createEventResult();
+    /**
+     * PTSD幻视触发事件，该事件可以被取消
+     * @see PTSDPhotismEvent#onPTSDPhotismTriggered(ServerPlayer, String)
+     */
+    Event<PTSDPhotismEvent> PTSD_PHOTISM_EVENT = EventFactory.createEventResult();
+    /**
+     * PTSD消散事件
+      * @see PTSDDisperseEvent#onPTSDDisperse(ServerPlayer, PTSDContext)
+     */
+    Event<PTSDDisperseEvent> PTSD_DISPERSE_EVENT = EventFactory.createLoop();
+    /**
+     * PTSD缓解事件
+     * @see PTSDRemissionEvent#onPTSDRemission(ServerPlayer, PTSDContext, PTSDLevel)
+     */
+    Event<PTSDRemissionEvent> PTSD_REMISSION_EVENT = EventFactory.createLoop();
+    /**
+     * PTSD形成事件，该事件可以被取消
+     * @see PTSDFormEvent#onPTSDFormed(ServerPlayer, PTSDContext, PTSDLevel)
+     */
+    Event<PTSDFormEvent> PTSD_FORM_EVENT = EventFactory.createEventResult();
+    /**
+     * PTSD等级变化事件
+     * @see PTSDLevelChangedEvent#onPTSDLevelChanged(ServerPlayer, PTSDContext, PTSDLevel, PTSDLevel)
+     */
+    Event<PTSDLevelChangedEvent> PTSD_LEVEL_CHANGED_EVENT = EventFactory.createLoop();
+    
+    @FunctionalInterface
+    interface PTSDOnsetEvent {
+        /**
+         * PTSD发作事件，但是注意，取消该事件只能阻止服务器发送PTSD发作的相关数据包，
+         * 无法阻止情绪值的扣除、幻觉触发和喘息症状。<br>
+         * 吐槽：没招啊这个，它散着写在tick方法里面，我根本不知道怎么注入，加油吧。
+         * @param onsetLevel PTSD发作等级，分为5个等级，取值范围[0, 4]。
+         * @param distance 触发PTSD的实体与玩家之间的距离，单位为方块（米）。
+         */
+        EventResult onPTSDOnset(ServerPlayer player, PTSDLevel onsetLevel, double distance);
+    }
+    
+    @FunctionalInterface
+    interface PTSDPhotismEvent {
+        /**
+         * @param photismId 触发幻视的ID。
+         * @see grainalcohol.dtt.mixin.event.PTSDManagerMixin
+         */
+        EventResult onPTSDPhotismTriggered(ServerPlayer player, String photismId);
+    }
+
+    @FunctionalInterface
+    interface PTSDDisperseEvent {
+        /**
+         * @param context 消散的PTSD的上下文信息。
+         * @see grainalcohol.dtt.mixin.event.MentalStatusMixin
+         */
+        void onPTSDDisperse(ServerPlayer player, PTSDContext context);
+    }
+
+    @FunctionalInterface
+    interface PTSDRemissionEvent {
+        /**
+         * @param context 缓解的PTSD的上下文信息。
+         * @param currentLevel 缓解后的PTSD等级。
+         * @see grainalcohol.dtt.mixin.event.PTSDManagerMixin
+         */
+        void onPTSDRemission(ServerPlayer player, PTSDContext context, PTSDLevel currentLevel);
+    }
+
+    @FunctionalInterface
+    interface PTSDFormEvent {
+        /**
+         * @param context 形成的PTSD的上下文信息。
+         * @param currentLevel 形成后的PTSD等级。
+         * @see grainalcohol.dtt.mixin.event.MentalStatusMixin
+         */
+        EventResult onPTSDFormed(ServerPlayer player, PTSDContext context, PTSDLevel currentLevel);
+    }
+
+    @FunctionalInterface
+    interface PTSDLevelChangedEvent {
+        /**
+         * PTSD等级改变
+         * @param player PTSD等级改变的玩家
+         * @param context 改变的PTSD的上下文信息。
+         * @param lastLevel 改变前的PTSD等级
+         * @param currentLevel 改变后的PTSD等级
+         */
+        void onPTSDLevelChanged(ServerPlayer player, PTSDContext context, PTSDLevel lastLevel, PTSDLevel currentLevel);
+    }
+}

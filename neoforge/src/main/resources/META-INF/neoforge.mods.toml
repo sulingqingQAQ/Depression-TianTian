@@ -1,0 +1,48 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+issueTrackerURL = "https://github.com/GRAINALCOHOL/depression-tiantian/issues"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "dtt"
+version = "${version}"
+displayName = "DepressionTianTian"
+authors = "GRAINALCOHOL, 食猫兽杨子默, 泡芙Orz, 李天昊, ki_ecao"
+description = '''
+A Depression sub mod for Minecraft.
+'''
+logoFile = "assets/dtt/icon.png"
+
+[[mixins]]
+config = "dtt.mixins.json"
+
+[[mixins]]
+config = "dtt-neoforge.mixins.json"
+
+[[dependencies.dtt]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.dtt]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1, 1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.dtt]]
+modId = "architectury"
+type = "required"
+versionRange = "[13.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.dtt]]
+modId = "depression"
+type = "required"
+versionRange = "[0.2.3,)"
+ordering = "AFTER"
+side = "BOTH"

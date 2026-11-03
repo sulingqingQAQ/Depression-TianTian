@@ -1,0 +1,27 @@
+package grainalcohol.dtt.mixin.modification;
+
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import grainalcohol.dtt.config.DTTConfig;
+import net.depression.client.ClientPTSDManager;
+import net.minecraft.world.entity.player.Player;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+
+@Mixin(value = ClientPTSDManager.class, remap = false)
+public class ClientPTSDManagerMixin {
+    @WrapOperation(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;setXRot(F)V",
+                    remap = true
+            )
+    )
+    private void wrapSetPitch(Player player, float pitch, Operation<Void> original) {
+        if (DTTConfig.getInstance().getClientConfig().visualConfig.disablePantingVisualAnimation) {
+            return;
+        }
+        original.call(player, pitch);
+    }
+}

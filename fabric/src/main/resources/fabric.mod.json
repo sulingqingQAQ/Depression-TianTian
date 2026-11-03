@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 1,
+	"id": "dtt",
+	"version": "${version}",
+	"name": "DepressionTianTian",
+	"description": "A Depression sub mod for Minecraft Fabric.",
+	"authors": [
+		"GRAINALCOHOL",
+		"食猫兽杨子默",
+		"泡芙Orz",
+		"李天昊",
+		"ki_ecao"
+	],
+	"contact": {
+		"homepage": "https://kook.vip/mLQyzH",
+		"sources": "https://github.com/GRAINALCOHOL/depression-tiantian",
+		"issues": "https://github.com/GRAINALCOHOL/depression-tiantian/issues"
+	},
+	"license": "GPL-3.0",
+	"icon": "assets/dtt/icon.png",
+	"environment": "*",
+	"entrypoints": {
+        "client": [
+            "grainalcohol.dtt.fabric.DTTModFabricClient"
+        ],
+		"main": [
+            "grainalcohol.dtt.fabric.DTTModFabric"
+		]
+	},
+	"mixins": [
+		"dtt.mixins.json",
+		"dtt-fabric.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*",
+		"architectury": ">=13.0.0",
+        "depression": ">=0.2.3+1.21.1"
+	}
+}
