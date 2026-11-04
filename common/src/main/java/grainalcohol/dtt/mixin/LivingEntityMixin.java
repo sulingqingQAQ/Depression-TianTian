@@ -78,7 +78,7 @@ public class LivingEntityMixin implements AnorexiaController {
                 durationTicks += MathUtil.inRange(new Random(), 20 * 20, 20 * 60); // 20~60秒
             }
             player.addEffect(new MobEffectInstance(
-                    DTTStatusEffect.ANOREXIA, durationTicks, Math.max(0, severity.getLevel() - 1),
+                    net.depression.effect.EffectHolders.resolve(DTTStatusEffect.ANOREXIA), durationTicks, Math.max(0, severity.getLevel() - 1),
                     false, true, true)
             );
             DTTHintMessage.ANOREXIA_MESSAGE.trigger(player);

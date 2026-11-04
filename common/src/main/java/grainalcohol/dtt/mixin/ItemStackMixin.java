@@ -7,6 +7,7 @@ import grainalcohol.dtt.init.DTTHintMessage;
 import grainalcohol.dtt.init.DTTStatusEffect;
 import grainalcohol.dtt.api.wrapper.MentalHealthStatus;
 import grainalcohol.dtt.api.helper.MentalStatusHelper;
+import net.depression.effect.EffectHolders;
 import net.depression.mental.MentalStatus;
 import net.depression.server.Registry;
 import net.minecraft.core.component.DataComponents;
@@ -34,24 +35,24 @@ public class ItemStackMixin {
 
         if (!(user instanceof ServerPlayer player)) return;
 
-        if (player.hasEffect(DTTStatusEffect.ANOREXIA)) {
+        if (player.hasEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA))) {
             // 厌食且没有特别饥饿时，禁止进食
             if (player.getFoodData().getFoodLevel() >= 4) {
                 cir.setReturnValue(InteractionResultHolder.fail(stack));
             }
 
             // 特别饥饿时允许进食，但延长厌食症状态时间
-            MobEffectInstance anorexiaStatusEffect = player.getEffect(DTTStatusEffect.ANOREXIA);
+            MobEffectInstance anorexiaStatusEffect = player.getEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA));
             if (anorexiaStatusEffect == null) {
                 return;
             }
 
-            player.removeEffect(DTTStatusEffect.ANOREXIA);
+            player.removeEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA));
             // 1.21 的 saturation() 是最终饱和度 = nutrition * 修饰值 * 2，这里还原回旧版的饱和度修饰值
             float saturationModifier = foodProperties.nutrition() > 0 ? foodProperties.saturation() / (2.0F * foodProperties.nutrition()) : 0.0F;
             int extraDuration = (foodProperties.nutrition() + (int) saturationModifier) * 20 * 2; // 每点饥饿值和饱和度各增加1秒
             player.addEffect(new MobEffectInstance(
-                    DTTStatusEffect.ANOREXIA,
+                    EffectHolders.resolve(DTTStatusEffect.ANOREXIA),
                     Math.max(0, anorexiaStatusEffect.getDuration() + extraDuration),
                     anorexiaStatusEffect.getAmplifier(),
                     anorexiaStatusEffect.isAmbient(),

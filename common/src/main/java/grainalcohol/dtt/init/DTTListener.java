@@ -14,6 +14,7 @@ import grainalcohol.dtt.api.wrapper.PTSDLevel;
 import grainalcohol.dtt.hint.HintMessageManager;
 import grainalcohol.dtt.network.ServerConfigPacket;
 import dev.architectury.event.events.common.PlayerEvent;
+import net.depression.effect.EffectHolders;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -66,9 +67,9 @@ public class DTTListener {
                     DailyStatManager.getTodayStat(player.getUUID()).setTrueStat(DTTDailyStat.WORSENED);
                 }
 
-                if (currentStatus.isHealthy() && player.hasEffect(DTTStatusEffect.ANOREXIA)) {
+                if (currentStatus.isHealthy() && player.hasEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA))) {
                     // 恢复到健康状态时移除厌食状态效果
-                    player.removeEffect(DTTStatusEffect.ANOREXIA);
+                    player.removeEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA));
                 }
             }
         });
