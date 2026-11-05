@@ -80,7 +80,7 @@ public class NearbyMentalHealHelper {
             if (entity.getOwnerUUID() != null
                     && entity.getOwnerUUID().equals(player.getUUID())
                     && entity.distanceToSqr(player) <= radius * radius
-                    && isBlockedByBlocks(world, player.getEyePosition(), entity.getEyePosition(), player)
+                    && !isBlockedByBlocks(world, player.getEyePosition(), entity.getEyePosition(), player)
             ) {
                 // 有这样一个宠物，它的主人是发起检查的玩家
                 // 并且玩家与这个宠物的距离不超过指定半径

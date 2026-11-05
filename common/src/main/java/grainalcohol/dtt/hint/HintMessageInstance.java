@@ -12,12 +12,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 public class HintMessageInstance implements Sendable {
+    /**
+     * 积累判定与发送判定的降频间隔（tick）。
+     * <p>积累计时器的条件里常带重活（JukeboxMessage 的 405 次方块实体查询、PetMessage 的 AABB 搜索 + 视线裁剪）。
+     * 冷却计时器一旦走完（{@code isFinished()} 恒为 true），原来这些条件就会每 tick 永久执行一遍；
+     * 改为每 20 tick 判定一次，并让积累计时器按 20 tick 步进，消息的实际时长与冷却时长都不变。</p>
+     */
+    private static final int THROTTLED_CHECK_INTERVAL = 20;
+
     @NotNull
     private final HintMessage hintMessage;
     @NotNull
     private final Timer cooldownTimer;
     @Nullable
     private final Timer accumulateTimer;
+    // 距下次降频判定的剩余tick，只在需要判定时才归零，避免每 tick 取模
+    private int ticksUntilThrottledCheck = THROTTLED_CHECK_INTERVAL;
 
     public HintMessageInstance(HintMessage hintMessage) {
         this.hintMessage = hintMessage;
@@ -43,8 +53,17 @@ public class HintMessageInstance implements Sendable {
     public void tick(ServerPlayer player) {
         if (getGlobalCondition() != null && !getGlobalCondition().test(player)) return;
 
+        // 冷却计时器照常每 tick 推进，冷却时长保持不变
         getCooldownTimer().tick(player);
-        if (getAccumulateTimer() != null && getCooldownTimer().isFinished()) getAccumulateTimer().tick(player);
+
+        if (--ticksUntilThrottledCheck > 0) return; // 未到降频点，本 tick 不做重条件判定
+        ticksUntilThrottledCheck = THROTTLED_CHECK_INTERVAL;
+
+        // 积累判定与发送判定每 THROTTLED_CHECK_INTERVAL tick 做一次；积累计时器按经过的tick步进，
+        // 所以"在唱片机/宠物旁待3秒"这类时长的语义不变，只是判定粒度从 1 tick 放宽到 20 tick
+        if (getAccumulateTimer() != null && getCooldownTimer().isFinished()) {
+            getAccumulateTimer().tick(player, THROTTLED_CHECK_INTERVAL);
+        }
 
         if (asHintMessage().autoSend() && canSend()) send(player);
     }

@@ -3,8 +3,9 @@ package grainalcohol.dtt.diary;
 import grainalcohol.dtt.DTTMod;
 import grainalcohol.dtt.config.DTTConfig;
 import grainalcohol.dtt.diary.topic.v2.ContextAttribute;
-import grainalcohol.dtt.diary.dailystat.DailyStat;
-import grainalcohol.dtt.diary.dailystat.DailyStatManager;
+import grainalcohol.dtt.diary.dailystat.v2.DailyStat;
+import grainalcohol.dtt.diary.dailystat.v2.DailyStatManager;
+import grainalcohol.dtt.init.DTTDailyStat;
 import grainalcohol.dtt.diary.feeling.v2.Feeling;
 import grainalcohol.dtt.diary.feeling.v2.FeelingProducer;
 import grainalcohol.dtt.diary.topic.v2.TopicProducer;
@@ -37,8 +38,11 @@ public class DiaryContentProducer {
         FeelingProducer feelingProducer = new FeelingProducer(getTopicProducer().getAllContextAttributes(), gentleMode);
         this.feeling = feelingProducer.getFeeling();
 
-        this.hasCured = DailyStatManager.getTodayResult(player.getUUID(), DailyStat::isHasCured);
-        this.hasWorsened = DailyStatManager.getTodayResult(player.getUUID(), DailyStat::isHasWorsened);
+        // 统计写入方（DTTListener）用的是 v2 DailyStatManager，这里必须读同一份数据，
+        // 否则 v1 的三层 map 永远为空 → 日记里的"康复/恶化"段落恒为 false
+        DailyStat todayStat = DailyStatManager.getTodayStat(player.getUUID());
+        this.hasCured = todayStat.getBooleanStat(DTTDailyStat.CURED);
+        this.hasWorsened = todayStat.getBooleanStat(DTTDailyStat.WORSENED);
 
         this.usedTranslationKeys = new ArrayList<>();
     }

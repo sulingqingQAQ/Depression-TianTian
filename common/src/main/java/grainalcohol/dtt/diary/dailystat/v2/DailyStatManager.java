@@ -23,7 +23,8 @@ public class DailyStatManager {
         if (todayStat == null) return;
 
         // 覆盖昨天的数据
-        yesterdayStats.replace(playerId, todayStat);
+        // 用 put 而不是 replace：首次跨天时 yesterdayStats 里还没有该玩家的键，replace 会静默失败导致昨日统计永久为空
+        yesterdayStats.put(playerId, todayStat);
 
         // 将当前的数据用于计算移动平均值
         DailyStat previousEMA = EMAStats.get(playerId);
@@ -40,10 +41,12 @@ public class DailyStatManager {
 
         // 合并并覆盖
         newEMA.merge(previousEMA);
-        EMAStats.replace(playerId, newEMA);
+        // 同 yesterdayStats：首次计算 EMA 时键不存在，replace 会丢掉这次结果，必须用 put
+        EMAStats.put(playerId, newEMA);
 
         // 清空今天的数据
-        todayStats.replace(playerId, new DailyStat());
+        // 同前两处：首次跨天时 todayStats 可能已被清过，replace 不生效会让统计跨天累积
+        todayStats.put(playerId, new DailyStat());
     }
 
     public static DailyStat getTodayStat(UUID playerId) {

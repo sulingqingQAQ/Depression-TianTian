@@ -29,6 +29,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ServerPlayerEntityMixin implements EyesStatusFlagController {
     // 服务端标记
     @Unique private boolean dtt$isEyesClosed = false;
+    // 上一次见过的"天序号"（dayTime/24000）；Long.MIN_VALUE 表示本次上线还没初始化
+    @Unique private long dtt$lastDayIndex = Long.MIN_VALUE;
 
     @Override
     public boolean dtt$getIsEyesClosedFlag() {
@@ -76,10 +78,19 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
         ServerPlayer self = (ServerPlayer) (Object) this;
         ServerLevel serverWorld = self.serverLevel();
         ServerConfig serverConfig = DTTConfig.getInstance().getServerConfig();
-        if (serverWorld.getDayTime() % 24000 == 0) {
-            // 每天0时更新统计数据
-            double EMA_Factor = serverConfig.diaryConfig.EMAFactor;
-            DailyStatManager.updateDailyStat(self.getUUID(), EMA_Factor);
+        // 日切判定改用"天序号变化"：dayTime/24000 变化一次才更新一次统计，天然幂等。
+        // 原来的 dayTime%24000==0 在 doDaylightCycle=false 把时间冻结在 24000 整数倍时会每 tick 成立，
+        // 于是每 tick 都把当天统计清空（醒着的玩家永远攒不到数据）
+        long dayIndex = serverWorld.getDayTime() / 24000L;
+        if (dayIndex != this.dtt$lastDayIndex) {
+            // 上线后的第一 tick 只记录当前天序号，不触发日切，避免刚登录就把今天的统计滚到昨天
+            boolean initialized = this.dtt$lastDayIndex != Long.MIN_VALUE;
+            this.dtt$lastDayIndex = dayIndex;
+            if (initialized) {
+                // 每天0时更新统计数据
+                double EMA_Factor = serverConfig.diaryConfig.EMAFactor;
+                DailyStatManager.updateDailyStat(self.getUUID(), EMA_Factor);
+            }
         }
         HintMessageManager.tick(self);
     }

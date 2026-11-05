@@ -34,6 +34,23 @@ public class Timer {
         }
     }
 
+    /**
+     * 按经过的tick数推进计时器。
+     * <p>用于"条件判定被降频"的场景：条件本身很重（AABB 搜索 / 方块实体查询 / 视线裁剪）时不再每 tick 判定，
+     * 而是在判定成立时一次性扣除这期间经过的tick，使计时器的实际时长与每 tick 推进完全一致。</p>
+     *
+     * @param player       计时器条件所针对的玩家
+     * @param elapsedTicks 自上次判定以来经过的tick数，应大于 0
+     */
+    public void tick(ServerPlayer player, int elapsedTicks) {
+        if (elapsedTicks <= 0) {
+            return;
+        }
+        if (ticks > 0 && condition.test(player)) {
+            ticks = Math.max(0, ticks - elapsedTicks);
+        }
+    }
+
     public boolean isFinished() {
         return ticks <= 0;
     }

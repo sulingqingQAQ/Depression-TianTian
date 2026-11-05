@@ -55,8 +55,8 @@ public class DTTListener {
             // 患病情况恶化
             if (currentStatus.isSickerThan(lastTickStatus)) {
                 if (currentStatus.isSeverelyIll()) {
-                    // 恶化到严重程度
-                    DailyStatManager.getTodayStat(player.getUUID()).setTrueStat(DTTDailyStat.CURED);
+                    // 恶化到严重程度（CURED/WORSENED 原本写反，导致日记里"康复"和"恶化"两段互换）
+                    DailyStatManager.getTodayStat(player.getUUID()).setTrueStat(DTTDailyStat.WORSENED);
                 }
             }
 
@@ -64,7 +64,7 @@ public class DTTListener {
             if (currentStatus.isHealthierThan(lastTickStatus)) {
                 if (lastTickStatus.isSeverelyIll()) {
                     // 恢复到非严重程度
-                    DailyStatManager.getTodayStat(player.getUUID()).setTrueStat(DTTDailyStat.WORSENED);
+                    DailyStatManager.getTodayStat(player.getUUID()).setTrueStat(DTTDailyStat.CURED);
                 }
 
                 if (currentStatus.isHealthy() && player.hasEffect(EffectHolders.resolve(DTTStatusEffect.ANOREXIA))) {
