@@ -28,7 +28,7 @@ jobs:
       - name: publish Depression main mod to maven local
         run: |
           chmod +x ./main-mod/gradlew
-          ./main-mod/gradlew -p ./main-mod :common:publishToMavenLocal --no-daemon
+          ./main-mod/gradlew -p ./main-mod :common:publishToMavenLocal :fabric:publishToMavenLocal :neoforge:publishToMavenLocal --no-daemon
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: build
