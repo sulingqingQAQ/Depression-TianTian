@@ -164,7 +164,7 @@ public abstract class MentalStatusMixin implements BlockBreakMentalHealCooldownC
             ServerConfig.PTSDConfig PTSDConfig = DTTConfig.getInstance().getServerConfig().PTSDConfig;
             double baseMultiplier = PTSDConfig.PTSDRecoveryMultiplier;
             double multiplier = PTSDConfig.PTSDRecoveryMultiplierLatent;
-            return original.call(PTSDEntry, doubleValue * baseMultiplier * multiplier);
+            return original.call(PTSDEntry, dtt$scalePTSDRecovery(PTSDEntry.getValue(), doubleValue, baseMultiplier * multiplier));
         }
         return original.call(PTSDEntry, value);
     }
@@ -182,9 +182,20 @@ public abstract class MentalStatusMixin implements BlockBreakMentalHealCooldownC
             ServerConfig.PTSDConfig PTSDConfig = DTTConfig.getInstance().getServerConfig().PTSDConfig;
             double baseMultiplier = PTSDConfig.PTSDRecoveryMultiplier;
             double multiplier = PTSDConfig.PTSDRecoveryMultiplierActive;
-            return original.call(PTSDEntry, doubleValue * baseMultiplier * multiplier);
+            return original.call(PTSDEntry, dtt$scalePTSDRecovery(PTSDEntry.getValue(), doubleValue, baseMultiplier * multiplier));
         }
         return original.call(PTSDEntry, value);
+    }
+
+    // 主包传进 setValue 的是已经恢复过一次的新值；倍率只能作用在"这一 tick 恢复了多少"上，
+    // 不能乘到残余值上（否则默认 1.5 倍时潜伏值会越恢复越高）。此时 setValue 还没执行，getValue() 仍是旧值。
+    @Unique
+    private static double dtt$scalePTSDRecovery(Double oldValue, double newValue, double factor) {
+        if (oldValue == null || factor == 1.0) {
+            return newValue; // 倍率 1 直接放行，保证与主包逐值一致
+        }
+        double recovery = oldValue - newValue;
+        return oldValue - recovery * factor;
     }
 
     // TODO: 加一个修改mentalHurt中黑暗环境对伤害量加成的mixin
