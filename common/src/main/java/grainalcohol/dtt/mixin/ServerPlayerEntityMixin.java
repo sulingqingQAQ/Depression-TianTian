@@ -8,6 +8,7 @@ import grainalcohol.dtt.diary.topic.v2.TopicManager;
 import grainalcohol.dtt.hint.HintMessageManager;
 import grainalcohol.dtt.init.DTTDailyStat;
 import grainalcohol.dtt.init.DTTHintMessage;
+import grainalcohol.dtt.init.DTTListener;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -173,6 +174,15 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
         TopicManager.writeToNbt(self.getUUID(), nbt);
 
         HintMessageManager.writeToNbt(self.getUUID(), nbt);
+
+        // 退出存档：上面三份数据（DailyStat / Topic / Hint）都写进 NBT 之后才允许清理内存。
+        // PLAYER_QUIT 只登记 UUID —— 那时还没存档（PlayerList.remove 头部），提前清会把这次的数据写丢；
+        // 正常在线的自动存档从未登记，这里恒为 false，绝不清。
+        if (DTTListener.consumeLogoutCleanup(self.getUUID())) {
+            HintMessageManager.onLogout(self);
+            DailyStatManager.remove(self.getUUID());
+            TopicManager.remove(self.getUUID());
+        }
     }
 
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))

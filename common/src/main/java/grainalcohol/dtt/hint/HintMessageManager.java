@@ -40,7 +40,7 @@ public class HintMessageManager {
         if (!pendingHintMessageTaskQueueMap.containsKey(playerUuid)) pendingHintMessageTaskQueueMap.put(playerUuid, new ArrayDeque<>());
     }
 
-    // TODO: 如果没有这个可能会导致内存泄露
+    // 退出存档写完之后由 ServerPlayerEntityMixin 调用（PLAYER_QUIT 时还不能清，数据未落盘）
     public static void onLogout(ServerPlayer player) {
         UUID playerUuid = player.getUUID();
         hintMessageInstanceMap.remove(playerUuid);
@@ -63,7 +63,10 @@ public class HintMessageManager {
             queue.removeIf(HintMessageTask::isExpired);
         }
 
-        pollingTimerHolder.tick(player);
+        // 只 tick 当前玩家自己的轮询计时器。
+        // 原来是 pollingTimerHolder.tick(player)，把"该玩家"的计时器当成参数去 tick 全表，N 个玩家就是 N² 次 tick/s
+        Timer pollingTimer = pollingTimerHolder.get(playerId);
+        if (pollingTimer != null) pollingTimer.tick(player);
 
         // 处理待发送队列
         if (pollingTimerHolder.isFinished(playerId)) {

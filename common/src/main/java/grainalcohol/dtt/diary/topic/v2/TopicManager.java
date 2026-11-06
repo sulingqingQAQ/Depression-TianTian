@@ -21,6 +21,14 @@ public class TopicManager {
         return historicalEssentialTopicsMap.get(playerUUID);
     }
 
+    /**
+     * 清理该玩家的历史话题记录。
+     * 只应在"退出存档已经写完"之后调用（见 DTTListener#consumeLogoutCleanup），否则会丢数据。
+     */
+    public static void remove(UUID playerUUID) {
+        historicalEssentialTopicsMap.remove(playerUUID);
+    }
+
     public static void writeToNbt(UUID playerUUID, CompoundTag nbt) {
         List<EssentialTopic> historicalEssentialTopics = getHistoricalTopics(playerUUID);
         if (historicalEssentialTopics.isEmpty()) return;

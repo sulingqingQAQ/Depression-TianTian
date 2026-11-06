@@ -86,6 +86,16 @@ public class DailyStatManager {
         nbt.put(DAILY_STAT_NBT_KEY, dailyStatNbt);
     }
 
+    /**
+     * 清理该玩家的全部内存统计（今日/昨日/EMA）。
+     * 只应在"退出存档已经写完"之后调用（见 DTTListener#consumeLogoutCleanup），否则会丢数据。
+     */
+    public static void remove(UUID playerId) {
+        todayStats.remove(playerId);
+        yesterdayStats.remove(playerId);
+        EMAStats.remove(playerId);
+    }
+
     public static void readFromNbt(UUID playerId, CompoundTag nbt) {
         if (!nbt.contains(DAILY_STAT_NBT_KEY)) return;
 

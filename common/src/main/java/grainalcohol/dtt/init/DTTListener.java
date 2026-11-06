@@ -22,7 +22,35 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class DTTListener {
+    /**
+     * 已退出、等待"退出存档写完之后"再清理内存数据的玩家。<br>
+     * 不能在 PLAYER_QUIT 里直接清：Architectury 的 PLAYER_QUIT 在 {@code PlayerList.remove} 头部触发
+     * （fabric: MixinPlayerList@HEAD；neoforge: {@code EventHooks.firePlayerLoggedOut}），
+     * 而原版紧接着才调 {@code save(player)} → {@code addAdditionalSaveData}。此时玩家数据还没进 NBT，
+     * 提前清表会把这次的日记/统计/提示直接写丢。<br>
+     * 所以这里只登记 UUID，真正清理放在 {@code ServerPlayerEntityMixin.onWriteCustomDataToNbt} 的 TAIL。
+     */
+    private static final Set<UUID> pendingLogoutCleanup = ConcurrentHashMap.newKeySet();
+
+    /** 退出时只登记，不做清理（写入 NBT 之前清会丢数据）。 */
+    public static void markLogoutCleanup(UUID playerId) {
+        pendingLogoutCleanup.add(playerId);
+    }
+
+    /**
+     * 取出并移除退出登记。<br>
+     * 返回 true 表示"这次写 NBT 就是退出存档，写完可以清理该玩家的内存数据"。
+     * 用 remove 保证只清一次；正常在线自动存档从未登记，永远返回 false。
+     */
+    public static boolean consumeLogoutCleanup(UUID playerId) {
+        return pendingLogoutCleanup.remove(playerId);
+    }
+
     public static void archEventInit() {
         EntityEvent.LIVING_DEATH.register((entity, source) -> {
             // 宠物死亡
@@ -132,6 +160,8 @@ public class DTTListener {
 
             HintMessageManager.onLogin(player);
         });
+        // 退出时只登记，真正的清理等 addAdditionalSaveData 把数据全写完之后再做
+        PlayerEvent.PLAYER_QUIT.register(player -> markLogoutCleanup(player.getUUID()));
     }
 
     public static void onPTSDLevelUp(ServerPlayer player, String ptsdInfo, PTSDLevel currentLevel) {

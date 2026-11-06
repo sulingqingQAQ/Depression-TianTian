@@ -20,10 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 @Mixin(value = MentalStatus.class, remap = false)
 public abstract class MentalStatusMixin implements BlockBreakMentalHealCooldownController {
@@ -62,18 +59,16 @@ public abstract class MentalStatusMixin implements BlockBreakMentalHealCooldownC
         }
     }
 
-    @WrapOperation(
-            method = "tick",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/util/concurrent/ExecutorService;submit(Ljava/lang/Runnable;)Ljava/util/concurrent/Future;"
-            )
-    )
-    private Future<?> wrapDetectNearbyHealBlockCalled(ExecutorService executor, Runnable runnable, Operation<Future<?>> original) {
-        if (this.tickCount % DTTConfig.getInstance().getServerConfig().mentalHealConfig.nearbyBlockIntervalTicks == 0) {
-            return original.call(executor, runnable);
+    // 方块光环扫描的门控：主包把"快照 + 提交"收进了 submitHealBlockScan()，tick 只调它。
+    // 这里在方法入口按配置间隔取消 —— 取消发生在主包的 CAS 占位之前，既不会残留 healBlockScanPending，
+    // 也不会白白抓一次已加载区块快照。
+    @Inject(method = "submitHealBlockScan", at = @At("HEAD"), cancellable = true)
+    private void gateHealBlockScan(CallbackInfo ci) {
+        int intervalTicks = DTTConfig.getInstance().getServerConfig().mentalHealConfig.nearbyBlockIntervalTicks;
+        if (intervalTicks <= 0 || this.tickCount % intervalTicks == 0) {
+            return; // 到点，放行
         }
-        return CompletableFuture.completedFuture(null);
+        ci.cancel();
     }
 
     @WrapOperation(
