@@ -33,8 +33,11 @@ public class MentalStatusMixin {
     @Unique private boolean dtt$lastTickIsInCombatState = false;
     @Unique private boolean dtt$lastTickIsManicPhase = false;
 
+    // 注意：MentalStatus 的 lambda 序号由"整个类"共用的计数器生成，主包任何位置新增 lambda 都会整体位移。
+    // 0b48eca（t28 帧率修复）在静态初始化里新增了 lambda$static$0，其后序号统一 +1：
+    // tick$1=实体分支、tick$2=非实体分支、removePTSD$5=实体分支、removePTSD$6=非实体分支。
     @Inject(
-            method = "lambda$tick$0",
+            method = "lambda$tick$1",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/depression/network/ActionbarHintPacket;sendPTSDFormPacket(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/Component;)V",
@@ -48,7 +51,7 @@ public class MentalStatusMixin {
     }
 
     @WrapOperation(
-            method = "lambda$tick$1",
+            method = "lambda$tick$2",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/depression/network/ActionbarHintPacket;sendPTSDFormPacket(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/Component;)V",
@@ -90,7 +93,7 @@ public class MentalStatusMixin {
     }
 
     @Inject(
-            method = "lambda$removePTSD$4",
+            method = "lambda$removePTSD$5",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/depression/network/ActionbarHintPacket;sendPTSDDispersePacket(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/Component;)V",
@@ -104,7 +107,7 @@ public class MentalStatusMixin {
     }
 
     @WrapOperation(
-            method = "lambda$removePTSD$5",
+            method = "lambda$removePTSD$6",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/depression/network/ActionbarHintPacket;sendPTSDDispersePacket(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/Component;)V",
