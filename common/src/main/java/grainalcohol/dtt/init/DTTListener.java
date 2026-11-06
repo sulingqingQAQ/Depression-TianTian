@@ -158,6 +158,8 @@ public class DTTListener {
                     serverConfig.commonConfig.disableMentalTraitSelectScreen
             ));
 
+            // 丢弃上一次异常退出（存档中途抛错、没走到清理）可能残留的登记，否则重进后第一次在线自动存档会误清这名玩家的数据
+            consumeLogoutCleanup(player.getUUID());
             HintMessageManager.onLogin(player);
         });
         // 退出时只登记，真正的清理等 addAdditionalSaveData 把数据全写完之后再做

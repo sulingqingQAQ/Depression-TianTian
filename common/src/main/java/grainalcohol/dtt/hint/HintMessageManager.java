@@ -112,21 +112,27 @@ public class HintMessageManager {
     }
 
     public static void writeToNbt(UUID playerId, CompoundTag nbt) {
+        // 空表保险：数据已被提前清理（或从未登录）时跳过整个 Hint 写入，不写半截 NBT，也不让整份玩家存档因 NPE 失败
+        SendableManager<HintMessageInstance> instanceManager = hintMessageInstanceMap.get(playerId);
+        Queue<HintMessageTask> taskQueue = pendingHintMessageTaskQueueMap.get(playerId);
+        Timer pollingTimer = pollingTimerHolder.get(playerId);
+        if (instanceManager == null || taskQueue == null || pollingTimer == null) return;
+
         ListTag instanceList = new ListTag();
-        for (var instance : hintMessageInstanceMap.get(playerId).values()) {
+        for (var instance : instanceManager.values()) {
             instanceList.add(instance.toNbt());
         }
 //        hintMessageInstanceMap.remove(playerId);
         nbt.put("HintMessageInstances", instanceList);
 
         ListTag pendingList = new ListTag();
-        for (var task : pendingHintMessageTaskQueueMap.get(playerId)) {
+        for (var task : taskQueue) {
             pendingList.add(task.toNbt());
         }
 //        pendingHintMessageTaskQueueMap.remove(playerId);
         nbt.put("PendingHintMessageTasks", pendingList);
 
-        nbt.putInt("PollingTimerTicks", pollingTimerHolder.get(playerId).getTicks());
+        nbt.putInt("PollingTimerTicks", pollingTimer.getTicks());
         nbt.putBoolean("IsQueueBlocked", blockedPendingQueues.contains(playerId));
     }
 
