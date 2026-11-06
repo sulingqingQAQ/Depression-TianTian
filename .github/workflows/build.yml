@@ -12,6 +12,12 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
+      - name: checkout Depression main mod
+        uses: actions/checkout@v4
+        with:
+          repository: sulingqingQAQ/Depression
+          ref: neoforge-1.21.1
+          path: main-mod
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
       - name: setup jdk
@@ -19,10 +25,14 @@ jobs:
         with:
           java-version: '21'
           distribution: 'microsoft'
+      - name: publish Depression main mod to maven local
+        run: |
+          chmod +x ./main-mod/gradlew
+          ./main-mod/gradlew -p ./main-mod :common:publishToMavenLocal --no-daemon
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build --no-daemon
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:
