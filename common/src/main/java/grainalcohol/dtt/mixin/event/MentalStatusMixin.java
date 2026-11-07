@@ -59,7 +59,7 @@ public class MentalStatusMixin {
             )
     )
     private void PTSDFormEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(argsOnly = true, ordinal = 0) String key) {
-        PTSDContext context = PTSDContext.of(key, id.toString());
+        PTSDContext context = PTSDContext.of(key, id.getString());
         PTSDEvent.PTSD_FORM_EVENT.invoker().onPTSDFormed(player, context, PTSDLevel.LATENT);
         original.call(player, id);
     }
@@ -102,7 +102,7 @@ public class MentalStatusMixin {
     )
     private void PTSDDisperseEvent1(EntityType<?> entityType, CallbackInfo ci) {
         String ptsdId = EntityType.getKey(entityType).toString();
-        PTSDContext context = PTSDContext.of(ptsdId, entityType.getDescription().toString());
+        PTSDContext context = PTSDContext.of(ptsdId, entityType.getDescription().getString());
         PTSDEvent.PTSD_DISPERSE_EVENT.invoker().onPTSDDisperse(this.player, context);
     }
 
@@ -115,7 +115,7 @@ public class MentalStatusMixin {
             )
     )
     private void PTSDDisperseEvent2(ServerPlayer player, Component id, Operation<Void> original, @Local(argsOnly = true, ordinal = 0) String key) {
-        PTSDContext context = PTSDContext.of(key, id.toString());
+        PTSDContext context = PTSDContext.of(key, id.getString());
         PTSDEvent.PTSD_DISPERSE_EVENT.invoker().onPTSDDisperse(player, context);
         original.call(player, id);
     }
