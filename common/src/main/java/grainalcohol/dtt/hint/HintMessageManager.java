@@ -40,21 +40,37 @@ public class HintMessageManager {
         if (!pendingHintMessageTaskQueueMap.containsKey(playerUuid)) pendingHintMessageTaskQueueMap.put(playerUuid, new ArrayDeque<>());
     }
 
-    // 退出存档写完之后由 ServerPlayerEntityMixin 调用（PLAYER_QUIT 时还不能清，数据未落盘）
-    public static void onLogout(ServerPlayer player) {
-        UUID playerUuid = player.getUUID();
+    /**
+     * 清掉该玩家的全部提示状态（实例表 / 待发送队列 / 轮询计时器 / 阻塞标记）。<br>
+     * 只应在"该次登出的存档已经写完"之后调用（{@code PlayerList.remove} 的 RETURN，见
+     * {@code grainalcohol.dtt.init.DTTPlayerState#evict}）：PLAYER_QUIT 时还不能清，那时数据还没进 NBT。
+     * 幂等；传 UUID 而不是 ServerPlayer，避免清理逻辑为了拿键去持有实体。
+     */
+    public static void onLogout(UUID playerUuid) {
         hintMessageInstanceMap.remove(playerUuid);
         pendingHintMessageTaskQueueMap.remove(playerUuid);
         pollingTimerHolder.remove(playerUuid);
         blockedPendingQueues.remove(playerUuid);
     }
 
+    /** 清空全部玩家的提示状态（服务器停止 / 开始前的全量清扫，见 {@code DTTPlayerState#resetAll}）。 */
+    public static void clearAll() {
+        hintMessageInstanceMap.clear();
+        pendingHintMessageTaskQueueMap.clear();
+        // TimerHolder 没有 clear()：用它现成的 removeIf 一次清空（底层 ConcurrentHashMap）
+        pollingTimerHolder.removeIf(timer -> true);
+        blockedPendingQueues.clear();
+    }
+
     public static void tick(ServerPlayer player) {
         UUID playerId = player.getUUID();
         // tick 所有实例的内部计时器
         // 发送逻辑由 HintMessageInstance 内部控制
-        hintMessageInstanceMap.get(playerId).values()
-                .forEach(instance -> instance.tick(player));
+        // 状态可能已被登出清理（清理在 remove RETURN，实体还可能被 tick 到）：实例表缺失就跳过，别让整条玩家 tick 链 NPE
+        SendableManager<HintMessageInstance> instanceManager = hintMessageInstanceMap.get(playerId);
+        if (instanceManager != null) {
+            instanceManager.values().forEach(instance -> instance.tick(player));
+        }
 
         // 处理过期机制，移除过期任务
         var queue = pendingHintMessageTaskQueueMap.get(playerId);

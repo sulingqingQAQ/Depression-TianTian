@@ -19,6 +19,7 @@
     "ItemStackMixin",
     "LivingEntityMixin",
     "PlayerEntityMixin",
+    "PlayerListMixin",
     "RaidMixin",
     "ServerPlayerEntityMixin",
     "ServerWorldMixin",

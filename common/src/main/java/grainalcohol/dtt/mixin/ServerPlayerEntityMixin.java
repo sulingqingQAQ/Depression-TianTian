@@ -1,6 +1,7 @@
 package grainalcohol.dtt.mixin;
 
 import grainalcohol.dtt.api.internal.EyesStatusFlagController;
+import grainalcohol.dtt.api.internal.SpawnResetHintController;
 import grainalcohol.dtt.config.DTTConfig;
 import grainalcohol.dtt.config.ServerConfig;
 import grainalcohol.dtt.diary.dailystat.v2.DailyStatManager;
@@ -8,7 +9,6 @@ import grainalcohol.dtt.diary.topic.v2.TopicManager;
 import grainalcohol.dtt.hint.HintMessageManager;
 import grainalcohol.dtt.init.DTTDailyStat;
 import grainalcohol.dtt.init.DTTHintMessage;
-import grainalcohol.dtt.init.DTTListener;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -27,7 +27,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerPlayer.class)
-public abstract class ServerPlayerEntityMixin implements EyesStatusFlagController {
+public abstract class ServerPlayerEntityMixin implements EyesStatusFlagController, SpawnResetHintController {
     // 服务端标记
     @Unique private boolean dtt$isEyesClosed = false;
     // 上一次见过的"天序号"（dayTime/24000）；Long.MIN_VALUE 表示本次上线还没初始化
@@ -43,6 +43,16 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
     @Override
     public void dtt$setIsEyesClosedFlag(boolean isClosed) {
         this.dtt$isEyesClosed = isClosed;
+    }
+
+    /**
+     * 取消尚未到期的"重置重生点"提示。<br>
+     * 由 {@code PlayerList.remove} 的 HEAD 调用（见 {@code grainalcohol.dtt.mixin.PlayerListMixin}）：
+     * 登出 / 关服时这条瞬态提示一律作废，不再像旧实现那样靠写 NBT 的副作用顺手清。
+     */
+    @Override
+    public void dtt$cancelSpawnResetHint() {
+        this.dtt$spawnResetHintAt = Long.MIN_VALUE;
     }
 
     @Inject(
@@ -166,22 +176,13 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
 
         nbt.putBoolean("dtt$isEyesClosed", this.dtt$isEyesClosed);
 
+        // 序列化是纯读：这里只把内存状态投影进 NBT，不新建对象、不清理、不消费任何标记。
+        // 清理挪到 PlayerList.remove 的 RETURN（见 DTTPlayerState），登录残留由 placeNewPlayer HEAD 兜住。
         DailyStatManager.writeToNbt(self.getUUID(), nbt);
 
         TopicManager.writeToNbt(self.getUUID(), nbt);
 
         HintMessageManager.writeToNbt(self.getUUID(), nbt);
-
-        // 退出存档：上面三份数据（DailyStat / Topic / Hint）都写进 NBT 之后才允许清理内存。
-        // PLAYER_QUIT 只登记 UUID —— 那时还没存档（PlayerList.remove 头部），提前清会把这次的数据写丢；
-        // 正常在线的自动存档从未登记，这里恒为 false，绝不清。
-        if (DTTListener.consumeLogoutCleanup(self.getUUID())) {
-            // 退出时取消还没到期的重置重生点提示，避免把旧会话的待办带进下一个会话
-            this.dtt$spawnResetHintAt = Long.MIN_VALUE;
-            HintMessageManager.onLogout(self);
-            DailyStatManager.remove(self.getUUID());
-            TopicManager.remove(self.getUUID());
-        }
     }
 
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))

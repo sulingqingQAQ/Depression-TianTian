@@ -2,6 +2,7 @@ package grainalcohol.dtt.init;
 
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.EntityEvent;
+import dev.architectury.event.events.common.LifecycleEvent;
 import grainalcohol.dtt.api.event.MentalIllnessEvent;
 import grainalcohol.dtt.api.event.PTSDEvent;
 import grainalcohol.dtt.api.event.SymptomEvent;
@@ -22,34 +23,7 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 public class DTTListener {
-    /**
-     * 已退出、等待"退出存档写完之后"再清理内存数据的玩家。<br>
-     * 不能在 PLAYER_QUIT 里直接清：Architectury 的 PLAYER_QUIT 在 {@code PlayerList.remove} 头部触发
-     * （fabric: MixinPlayerList@HEAD；neoforge: {@code EventHooks.firePlayerLoggedOut}），
-     * 而原版紧接着才调 {@code save(player)} → {@code addAdditionalSaveData}。此时玩家数据还没进 NBT，
-     * 提前清表会把这次的日记/统计/提示直接写丢。<br>
-     * 所以这里只登记 UUID，真正清理放在 {@code ServerPlayerEntityMixin.onWriteCustomDataToNbt} 的 TAIL。
-     */
-    private static final Set<UUID> pendingLogoutCleanup = ConcurrentHashMap.newKeySet();
-
-    /** 退出时只登记，不做清理（写入 NBT 之前清会丢数据）。 */
-    public static void markLogoutCleanup(UUID playerId) {
-        pendingLogoutCleanup.add(playerId);
-    }
-
-    /**
-     * 取出并移除退出登记。<br>
-     * 返回 true 表示"这次写 NBT 就是退出存档，写完可以清理该玩家的内存数据"。
-     * 用 remove 保证只清一次；正常在线自动存档从未登记，永远返回 false。
-     */
-    public static boolean consumeLogoutCleanup(UUID playerId) {
-        return pendingLogoutCleanup.remove(playerId);
-    }
 
     public static void archEventInit() {
         EntityEvent.LIVING_DEATH.register((entity, source) -> {
@@ -158,12 +132,15 @@ public class DTTListener {
                     serverConfig.commonConfig.disableMentalTraitSelectScreen
             ));
 
-            // 丢弃上一次异常退出（存档中途抛错、没走到清理）可能残留的登记，否则重进后第一次在线自动存档会误清这名玩家的数据
-            consumeLogoutCleanup(player.getUUID());
+            // 登录残留由 PlayerListMixin 的 placeNewPlayer HEAD（DTTPlayerState.onLogin）在 load 之前清掉，
+            // 这里不再消费任何"退出登记"标记；PLAYER_QUIT 也不再订阅（清理改在 remove RETURN，见 DTTPlayerState）
             HintMessageManager.onLogin(player);
         });
-        // 退出时只登记，真正的清理等 addAdditionalSaveData 把数据全写完之后再做
-        PlayerEvent.PLAYER_QUIT.register(player -> markLogoutCleanup(player.getUUID()));
+
+        // 服务器停止（专服 /stop、单人退到标题、换世界）之后、以及开始之前的全量清扫：
+        // 单人房主的持久状态在 remove RETURN 不清，留到这里（单人服随即停止，之后不会再有保存）
+        LifecycleEvent.SERVER_BEFORE_START.register(server -> DTTPlayerState.resetAll());
+        LifecycleEvent.SERVER_STOPPED.register(server -> DTTPlayerState.resetAll());
     }
 
     public static void onPTSDLevelUp(ServerPlayer player, String ptsdInfo, PTSDLevel currentLevel) {

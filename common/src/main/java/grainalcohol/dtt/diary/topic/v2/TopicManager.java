@@ -23,15 +23,26 @@ public class TopicManager {
 
     /**
      * 清理该玩家的历史话题记录。
-     * 只应在"退出存档已经写完"之后调用（见 DTTListener#consumeLogoutCleanup），否则会丢数据。
+     * 只应在"该次登出的存档已经写完"之后调用（{@code PlayerList.remove} 的 RETURN，见
+     * {@code grainalcohol.dtt.init.DTTPlayerState#evict}），否则会丢数据。幂等。
      */
     public static void remove(UUID playerUUID) {
         historicalEssentialTopicsMap.remove(playerUUID);
     }
 
+    /** 清空全部玩家的历史话题记录（服务器停止 / 开始前的全量清扫，见 {@code DTTPlayerState#resetAll}）。 */
+    public static void clearAll() {
+        historicalEssentialTopicsMap.clear();
+    }
+
+    /**
+     * 把该玩家的历史话题投影进 NBT（纯读）。<br>
+     * 用 {@code get} 而不是 {@link #getHistoricalTopics}：后者会 {@code computeIfAbsent} 造出空表并留在内存里
+     * （旧实现的副作用之一）。缺失或为空就不写这个键，读侧对缺键宽容。
+     */
     public static void writeToNbt(UUID playerUUID, CompoundTag nbt) {
-        List<EssentialTopic> historicalEssentialTopics = getHistoricalTopics(playerUUID);
-        if (historicalEssentialTopics.isEmpty()) return;
+        List<EssentialTopic> historicalEssentialTopics = historicalEssentialTopicsMap.get(playerUUID);
+        if (historicalEssentialTopics == null || historicalEssentialTopics.isEmpty()) return;
 
         ListTag nbtList = new ListTag();
         for (EssentialTopic essentialTopic: historicalEssentialTopics) {

@@ -64,36 +64,62 @@ public class DailyStatManager {
         return EMAStats.get(playerId);
     }
 
+    /**
+     * 把该玩家的三层统计投影进 NBT（纯读）。<br>
+     * 缺失哪一层就跳过哪一层的键，绝不在序列化里 get-or-create：旧实现用 {@code getTodayStat / getYesterdayStat / getEMAStat}
+     * 会顺手 {@code computeIfAbsent} 造出全零 {@code DailyStat} 并写进存档，正是"退出时二次序列化写出默认值"的根因之一。
+     * 读侧（{@link #readFromNbt}）本来就按子键独立宽容，所以缺键不会让存档读不回来。
+     */
     public static void writeToNbt(UUID playerId, CompoundTag nbt) {
         CompoundTag dailyStatNbt = new CompoundTag();
+        boolean written = false;
 
-        DailyStat todayStat = getTodayStat(playerId);
-        DailyStat yesterdayStat = getYesterdayStat(playerId);
-        DailyStat emaStat = getEMAStat(playerId);
+        DailyStat todayStat = todayStats.get(playerId);
+        if (todayStat != null) {
+            CompoundTag todayNbt = new CompoundTag();
+            todayStat.writeToNbt(todayNbt);
+            dailyStatNbt.put(TODAY_DAILY_STAT_NBT_KEY, todayNbt);
+            written = true;
+        }
 
-        CompoundTag todayNbt = new CompoundTag();
-        todayStat.writeToNbt(todayNbt);
-        dailyStatNbt.put(TODAY_DAILY_STAT_NBT_KEY, todayNbt);
+        DailyStat yesterdayStat = yesterdayStats.get(playerId);
+        if (yesterdayStat != null) {
+            CompoundTag yesterdayNbt = new CompoundTag();
+            yesterdayStat.writeToNbt(yesterdayNbt);
+            dailyStatNbt.put(YESTERDAY_DAILY_STAT_NBT_KEY, yesterdayNbt);
+            written = true;
+        }
 
-        CompoundTag yesterdayNbt = new CompoundTag();
-        yesterdayStat.writeToNbt(yesterdayNbt);
-        dailyStatNbt.put(YESTERDAY_DAILY_STAT_NBT_KEY, yesterdayNbt);
+        DailyStat emaStat = EMAStats.get(playerId);
+        if (emaStat != null) {
+            CompoundTag emaNbt = new CompoundTag();
+            emaStat.writeToNbt(emaNbt);
+            dailyStatNbt.put(MOVING_AVERAGE_DAILY_STAT_NBT_KEY, emaNbt);
+            written = true;
+        }
 
-        CompoundTag emaNbt = new CompoundTag();
-        emaStat.writeToNbt(emaNbt);
-        dailyStatNbt.put(MOVING_AVERAGE_DAILY_STAT_NBT_KEY, emaNbt);
+        // 一层都没有（状态已被清理）时整节不写，保持"缺哪个包的状态就不写哪个包的键"
+        if (!written) return;
 
         nbt.put(DAILY_STAT_NBT_KEY, dailyStatNbt);
     }
 
     /**
-     * 清理该玩家的全部内存统计（今日/昨日/EMA）。
-     * 只应在"退出存档已经写完"之后调用（见 DTTListener#consumeLogoutCleanup），否则会丢数据。
+     * 清理该玩家的全部内存统计（今日/昨日/EMA）。<br>
+     * 只应在"该次登出的存档已经写完"之后调用（{@code PlayerList.remove} 的 RETURN，见
+     * {@code grainalcohol.dtt.init.DTTPlayerState#evict}），否则会丢数据。幂等。
      */
     public static void remove(UUID playerId) {
         todayStats.remove(playerId);
         yesterdayStats.remove(playerId);
         EMAStats.remove(playerId);
+    }
+
+    /** 清空全部玩家的内存统计（服务器停止 / 开始前的全量清扫，见 {@code DTTPlayerState#resetAll}）。 */
+    public static void clearAll() {
+        todayStats.clear();
+        yesterdayStats.clear();
+        EMAStats.clear();
     }
 
     public static void readFromNbt(UUID playerId, CompoundTag nbt) {
