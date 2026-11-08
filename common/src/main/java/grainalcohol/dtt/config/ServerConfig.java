@@ -9,10 +9,15 @@ import grainalcohol.dtt.mixin.PlayerEntityMixin;
 import grainalcohol.dtt.mixin.modification.ClientTickEventListenerMixin;
 import grainalcohol.dtt.mixin.modification.MentalHealthScaleItemMixin;
 import grainalcohol.dtt.mixin.modification.PlayerEventListenerMixin;
+import grainalcohol.dtt.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
 public class ServerConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerConfig.class);
+
     @SerializedName("villager_config")
     public VillagerConfig villagerConfig = new VillagerConfig();
     @SerializedName("diary_config")
@@ -27,6 +32,67 @@ public class ServerConfig {
     public ItemConfig itemConfig = new ItemConfig();
     @SerializedName("mental_heal_config")
     public MentalHealConfig mentalHealConfig = new MentalHealConfig();
+
+    /**
+     * 加载后的分组与数值校验，由 {@link DTTConfig#loadConfig} 在 Gson 反序列化成功后调用。<br>
+     * 两种输入会让配置"看起来加载成功、实际不可用"，这里统一兜住并报错：
+     * <ul>
+     *     <li>JSON 里写了 {@code "combat_config": null} 之类的分组 → Gson 把该分组字段覆盖成 null，
+     *     后续 {@code getServerConfig().combatConfig.saferCatatonicStupor}（玩家加入、玩家 tick）直接 NPE；</li>
+     *     <li>{@code ema_factor} 越界（含 NaN/Infinity）→ {@code DailyStatManager.updateDailyStat} 里
+     *     {@code previousEMA.multiply(1 - EMAFactor)} 会给出负贡献，权重随之失真。</li>
+     * </ul>
+     * 合法配置（包括缺少某个键、由字段初始值补全的旧配置）不会被改动。
+     *
+     * @param fileName 配置文件名，仅用于错误日志定位
+     */
+    public void validate(String fileName) {
+        if (villagerConfig == null) {
+            LOGGER.error("Config {}: field 'villager_config' is missing or null, falling back to default group", fileName);
+            villagerConfig = new VillagerConfig();
+        }
+        if (diaryConfig == null) {
+            LOGGER.error("Config {}: field 'diary_config' is missing or null, falling back to default group", fileName);
+            diaryConfig = new DiaryConfig();
+        }
+        if (combatConfig == null) {
+            LOGGER.error("Config {}: field 'combat_config' is missing or null, falling back to default group", fileName);
+            combatConfig = new CombatConfig();
+        }
+        if (PTSDConfig == null) {
+            LOGGER.error("Config {}: field 'ptsd_config' is missing or null, falling back to default group", fileName);
+            PTSDConfig = new PTSDConfig();
+        }
+        if (commonConfig == null) {
+            LOGGER.error("Config {}: field 'common_config' is missing or null, falling back to default group", fileName);
+            commonConfig = new CommonConfig();
+        }
+        if (itemConfig == null) {
+            LOGGER.error("Config {}: field 'item_config' is missing or null, falling back to default group", fileName);
+            itemConfig = new ItemConfig();
+        }
+        if (mentalHealConfig == null) {
+            LOGGER.error("Config {}: field 'mental_heal_config' is missing or null, falling back to default group", fileName);
+            mentalHealConfig = new MentalHealConfig();
+        }
+
+        // EMA 因子必须落在 [0,1]：NaN 与 ±Infinity 也走这里（!(x>=0 && x<=1) 对 NaN 为真）
+        double emaFactor = diaryConfig.EMAFactor;
+        if (!(emaFactor >= 0d && emaFactor <= 1d)) {
+            double fixed = Double.isNaN(emaFactor) ? 0.5d : Math.max(0d, Math.min(1d, emaFactor));
+            LOGGER.warn("Config {}: 'diary_config.ema_factor' = {} is out of range [0, 1], clamped to {}", fileName, emaFactor, fixed);
+            diaryConfig.EMAFactor = fixed;
+        }
+
+        // 变体数量上限与 StringUtil 的硬上限保持一致，避免配置写错后变体查找循环失控
+        int variantCount = diaryConfig.diaryTranslationKeyVariantCount;
+        if (variantCount < 0 || variantCount > StringUtil.MAX_VARIANT_COUNT) {
+            int fixed = Math.max(0, Math.min(StringUtil.MAX_VARIANT_COUNT, variantCount));
+            LOGGER.warn("Config {}: 'diary_config.diary_translation_key_variant_count' = {} is out of range [0, {}], clamped to {}",
+                    fileName, variantCount, StringUtil.MAX_VARIANT_COUNT, fixed);
+            diaryConfig.diaryTranslationKeyVariantCount = fixed;
+        }
+    }
 
     public static class MentalHealConfig {
         /**

@@ -8,6 +8,13 @@ import net.minecraft.network.chat.Component;
 
 public class StringUtil {
     private static final Random RANDOM = new Random();
+    /**
+     * 变体数量上限。<br>
+     * 变体数量来自配置或调用方，原实现直接用它当循环上界（{@code i <= variantCount}），
+     * 传入 {@code Integer.MAX_VALUE} 时 {@code i++} 溢出成负数仍满足条件 → 死循环。
+     * 这里给一个硬上限：正常文案的变体数远小于此值，超过上限只意味着更后面的变体不会被选中。
+     */
+    public static final int MAX_VARIANT_COUNT = 64;
     public static String warp(String str, String warper) {
         if (str == null || warper == null) return null;
         return warper + str + warper;
@@ -42,7 +49,7 @@ public class StringUtil {
      * }</pre>
      * 若其中有定义的变体，则随机返回一个（包含原始translationKey），若无则返回原始的translationKey（即"diary.dmm.healthy.warm"）<br>
      * @param baseTranslationKey 原始translationKey
-     * @param variantCount 变体数量，取值范围为[1, variantCount]
+     * @param variantCount 变体数量，取值范围为[1, variantCount]，超过 {@link #MAX_VARIANT_COUNT} 按上限处理
      * @param random 用于随机选取的Random实例
      * @param usedKeys 已使用的translationKey集合，若不为null则会避免重复使用，若为null则不检查重复
      * @return 随机选取的变体translationKey或原始translationKey
@@ -54,6 +61,10 @@ public class StringUtil {
         if (variantCount < 1) {
             if (usedKeys != null) usedKeys.add(baseTranslationKey);
             return baseTranslationKey;
+        }
+        // 夹取到上限：循环上界固定为 [1, MAX_VARIANT_COUNT]，不会因 int 溢出变成死循环
+        if (variantCount > MAX_VARIANT_COUNT) {
+            variantCount = MAX_VARIANT_COUNT;
         }
 
         List<String> candidateKeys = new ArrayList<>();

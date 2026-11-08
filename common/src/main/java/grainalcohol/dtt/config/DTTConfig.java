@@ -2,6 +2,7 @@ package grainalcohol.dtt.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import dev.architectury.platform.Platform;
 import grainalcohol.dtt.DTTMod;
 import org.slf4j.Logger;
@@ -69,9 +70,23 @@ public class DTTConfig {
 
             if (configFile.exists()) {
                 try (FileReader reader = new FileReader(configFile)) {
-                    return GSON.fromJson(reader, configClass);
+                    T loaded = GSON.fromJson(reader, configClass);
+                    // 空文件、只有 null、或顶层不是 JSON 对象时 Gson 返回 null：
+                    // 原来直接返回 null，首次读 getServerConfig().combatConfig... 就 NPE，这里报错并回退默认值
+                    if (loaded == null) {
+                        LOGGER.error("Config file {} is empty or not a JSON object; falling back to defaults", configFile.getName());
+                        saveConfig(configFile, defaultConfig);
+                        return defaultConfig;
+                    }
+                    return validate(configFile, loaded);
                 } catch (IOException e) {
                     LOGGER.error("Failed to load config file: {}", configFile.getName(), e);
+                } catch (JsonParseException e) {
+                    // JSON 语法错误（或读取中被 Gson 包成 JsonIOException）：保留原文件（用户可能还要手工修），
+                    // 本次用默认值继续跑，不让整个模组初始化失败
+                    LOGGER.error("Config file {} could not be parsed or read ({}); falling back to defaults, the file is left untouched",
+                            configFile.getName(), e.getMessage());
+                    return defaultConfig;
                 }
             }
 
@@ -81,6 +96,35 @@ public class DTTConfig {
             LOGGER.error("Failed to create config directory", e);
             return defaultConfig;
         }
+    }
+
+    /**
+     * 反序列化成功之后的校验：分组字段为 null 时补默认分组，越界数值夹取到合法区间。<br>
+     * {@link ServerConfig} 自带 validate；{@link ClientConfig} 不在本批改动范围内，这里就地补齐它的空分组。
+     *
+     * @param configFile 配置文件名，用于错误日志定位
+     * @param loaded     反序列化得到的配置对象
+     * @return 同一个对象（已就地校验/修复）
+     */
+    protected static <T> T validate(File configFile, T loaded) {
+        String fileName = configFile.getName();
+        if (loaded instanceof ServerConfig serverConfig) {
+            serverConfig.validate(fileName);
+        } else if (loaded instanceof ClientConfig clientConfig) {
+            if (clientConfig.messageVariantConfig == null) {
+                LOGGER.error("Config {}: field 'message_variant_config' is missing or null, falling back to default group", fileName);
+                clientConfig.messageVariantConfig = new ClientConfig.MessageVariantConfig();
+            }
+            if (clientConfig.messageDisplayConfig == null) {
+                LOGGER.error("Config {}: field 'message_display_config' is missing or null, falling back to default group", fileName);
+                clientConfig.messageDisplayConfig = new ClientConfig.MessageDisplayConfig();
+            }
+            if (clientConfig.visualConfig == null) {
+                LOGGER.error("Config {}: field 'visual_config' is missing or null, falling back to default group", fileName);
+                clientConfig.visualConfig = new ClientConfig.VisualConfig();
+            }
+        }
+        return loaded;
     }
 
     protected static <T> void saveConfig(File configFile, T config) {

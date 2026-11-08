@@ -32,6 +32,8 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
     @Unique private boolean dtt$isEyesClosed = false;
     // 上一次见过的"天序号"（dayTime/24000）；Long.MIN_VALUE 表示本次上线还没初始化
     @Unique private long dtt$lastDayIndex = Long.MIN_VALUE;
+    // "重置重生点"提示的到期游戏刻；Long.MIN_VALUE 表示当前没有待触发的提示（替代原来的 sleep 线程）
+    @Unique private long dtt$spawnResetHintAt = Long.MIN_VALUE;
 
     @Override
     public boolean dtt$getIsEyesClosedFlag() {
@@ -57,21 +59,9 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
         }
 
         ServerPlayer self = (ServerPlayer) (Object) this;
-        ServerLevel serverWorld = self.serverLevel();
-
-        // TODO: 把延迟功能做到HintMessage里
-        new Thread(() -> {
-            try {
-                // 5s later
-                Thread.sleep(5000);
-
-                serverWorld.getServer().execute(() ->
-                        DTTHintMessage.RESET_SPAWN_POINT_MESSAGE.trigger(self)
-                );
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }).start();
+        // 原来这里是 new Thread + Thread.sleep(5000)：5 秒内重复设置会线性堆线程，且线程会持有旧 ServerPlayer/ServerLevel。
+        // 现在只登记到期游戏刻（5 秒 = 100 tick），由本类已有的 tick 注入倒计时触发；重复设置直接覆盖，合并成一次提示。
+        this.dtt$spawnResetHintAt = self.serverLevel().getGameTime() + 100L;
     }
 
     @Inject(method = "tick", at = @At("TAIL"))
@@ -91,6 +81,13 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
                 // 每天0时更新统计数据
                 double EMA_Factor = serverConfig.diaryConfig.EMAFactor;
                 DailyStatManager.updateDailyStat(self.getUUID(), EMA_Factor);
+            }
+        }
+        // 重置重生点提示的倒计时：到期先清标记再触发（触发时抛异常也不会重复发），断线/关服后不补发
+        if (this.dtt$spawnResetHintAt != Long.MIN_VALUE && serverWorld.getGameTime() >= this.dtt$spawnResetHintAt) {
+            this.dtt$spawnResetHintAt = Long.MIN_VALUE;
+            if (!self.hasDisconnected() && self.server.isRunning()) {
+                DTTHintMessage.RESET_SPAWN_POINT_MESSAGE.trigger(self);
             }
         }
         HintMessageManager.tick(self);
@@ -179,6 +176,8 @@ public abstract class ServerPlayerEntityMixin implements EyesStatusFlagControlle
         // PLAYER_QUIT 只登记 UUID —— 那时还没存档（PlayerList.remove 头部），提前清会把这次的数据写丢；
         // 正常在线的自动存档从未登记，这里恒为 false，绝不清。
         if (DTTListener.consumeLogoutCleanup(self.getUUID())) {
+            // 退出时取消还没到期的重置重生点提示，避免把旧会话的待办带进下一个会话
+            this.dtt$spawnResetHintAt = Long.MIN_VALUE;
             HintMessageManager.onLogout(self);
             DailyStatManager.remove(self.getUUID());
             TopicManager.remove(self.getUUID());
