@@ -33,9 +33,27 @@ public class RandomizedTimer extends Timer {
 
     @Override
     public void reset() {
-        super.setTicks(getTime() * getTimeUnit().getDurationTicks()
-                + MathUtil.inRange(RANDOM, randomBound) * randomBoundUnit.getDurationTicks()
-        );
+        reset(RANDOM);
+    }
+
+    /**
+     * 按给定随机源复位：基准时长加 {@link MathUtil#inRange(Random, int)} 的偏移，即 [-randomBound, randomBound-1] 个 randomBoundUnit；
+     * randomBound 为 0 表示不随机，直接复位到基准时长。包内可见，供测试用可控随机值驱动真实复位逻辑。
+     */
+    void reset(Random random) {
+        int offset = randomBound == 0 ? 0 : MathUtil.inRange(random, randomBound);
+        super.setTicks(getTime() * getTimeUnit().getDurationTicks() + offset * randomBoundUnit.getDurationTicks());
+    }
+
+    /**
+     * 最大合法剩余 tick = 基准时长 + 最大正偏移（(randomBound-1) 个 randomBoundUnit）。<br>
+     * 原来沿用父类的“只含基准时长”，{@link #reset()} 产生的正偏移会被 {@link #setTicks(int)} 截掉，
+     * 10 秒±5 秒的轮询只剩 5–10 秒且一半落在 10 秒；NBT 读回的剩余 tick 也同样被截。
+     */
+    @Override
+    public int getMaxTicks() {
+        int maxPositiveOffset = randomBound == 0 ? 0 : (randomBound - 1) * randomBoundUnit.getDurationTicks();
+        return super.getMaxTicks() + maxPositiveOffset;
     }
 
     @Override
@@ -96,6 +114,9 @@ public class RandomizedTimer extends Timer {
         }
 
         public RandomizedTimer.Builder randomBound(int randomBound, TimeUnit randomBoundUnit) {
+            if (randomBound < 0) {
+                throw new IllegalArgumentException("randomBound must be >= 0 (0 = no randomness), got " + randomBound);
+            }
             this.randomBound = randomBound;
             this.randomBoundUnit = randomBoundUnit;
             return this;

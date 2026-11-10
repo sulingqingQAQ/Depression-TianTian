@@ -47,6 +47,10 @@ public abstract class HintMessage {
     @NotNull
     public abstract String getTranslationKey();
 
+    /**
+     * 提示附带的效果，服务端实际发出这条提示后执行一次（见 {@link HintMessageSender} 的“afterSend 的执行时机”）。
+     * 没有附带效果时返回 null。
+     */
     @Nullable
     public abstract Consumer<ServerPlayer> getAfterSend();
 

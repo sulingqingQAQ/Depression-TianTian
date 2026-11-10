@@ -4,6 +4,7 @@ import grainalcohol.dtt.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Random;
+import java.util.function.Consumer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -39,6 +40,11 @@ import net.minecraft.server.level.ServerPlayer;
  *     HintMessageSender.send(player, MyHintMessage.MY_MESSAGE, someValue);
  * }
  * }</pre>
+ *
+ * <h2>afterSend 的执行时机</h2>
+ * <p>消息的 afterSend（附带的心情效果等）在服务端实际发出提示文本之后执行一次，无论走哪个入口：
+ * 重要消息在触发时立刻显示并执行；普通消息进入待发送队列时不执行，排到并显示时才执行；
+ * 过期未显示的消息不执行。</p>
  */
 public class HintMessageSender {
     private static final Random RANDOM = new Random();
@@ -112,17 +118,17 @@ public class HintMessageSender {
     }
 
     /**
-     * 绕过冷却和队列机制，立刻发送一条提示消息
+     * 绕过冷却和队列机制，立刻发送一条提示消息，发送后执行一次 afterSend
      * @param player 要发送的目标
      * @param hintMessage 要发送的消息
      * @param context 上下文数据，将填入本地化后的占位符
      */
     public static void immediately(ServerPlayer player, HintMessage hintMessage, @NotNull String... context) {
-        sendMessage(player, hintMessage.getTranslationKey(), hintMessage.getVariantCount(), context);
+        display(player, hintMessage, hintMessage.getTranslationKey(), hintMessage.getVariantCount(), context);
     }
 
     /**
-     * 绕过冷却和队列机制，立刻发送一条提示消息
+     * 绕过冷却和队列机制，立刻发送一条提示消息，发送后执行一次 afterSend
      * @param player 要发送的目标
      * @param hintMessage 要发送的消息
      */
@@ -131,12 +137,24 @@ public class HintMessageSender {
     }
 
     /**
-     * 绕过冷却和队列机制，立刻发送一条提示消息
+     * 绕过冷却和队列机制，立刻发送一条提示消息，发送后执行一次 afterSend
      * @param player 要发送的目标
      * @param sendable 要发送的消息
      */
     public static void immediately(ServerPlayer player, Sendable sendable) {
-        sendMessage(player, sendable.getTranslationKey(), sendable.getVariantCount(), sendable.getContext());
+        display(player, sendable.asHintMessage(), sendable.getTranslationKey(), sendable.getVariantCount(), sendable.getContext());
+    }
+
+    /**
+     * 实际发出一条提示，然后执行一次该消息的 afterSend。<br>
+     * afterSend 只在这里执行：重要消息立刻显示时执行一次；普通消息在待发送队列里排到、真正显示时执行一次；
+     * 排队中、被阻塞、过期而没有显示的消息不执行。
+     */
+    private static void display(ServerPlayer player, HintMessage hintMessage, String translationKey, int variantCount, String[] context) {
+        sendMessage(player, translationKey, variantCount, context);
+        // afterSend 是 HintMessage 约定的可空回调（没有附带效果的消息返回 null）
+        Consumer<ServerPlayer> afterSend = hintMessage.getAfterSend();
+        if (afterSend != null) afterSend.accept(player);
     }
 
     /**

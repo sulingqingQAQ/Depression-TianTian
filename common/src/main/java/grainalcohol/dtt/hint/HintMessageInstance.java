@@ -79,11 +79,10 @@ public class HintMessageInstance implements Sendable {
 
     @Override
     public void send(ServerPlayer player) {
+        // afterSend 由 HintMessageSender 在提示实际显示时执行（重要消息即刻、普通消息出队显示时），这里不再另执行一次
         HintMessageSender.send(player, this);
 
         resetTimer();
-
-        if (getAfterSend() != null) getAfterSend().accept(player);
     }
 
     public void resetTimer() {

@@ -60,8 +60,8 @@ public class HintMessageTask implements Sendable {
 
     @Override
     public void send(ServerPlayer player) {
+        // 显示并执行一次 afterSend（见 HintMessageSender#immediately）
         HintMessageSender.immediately(player, this);
-        if (getAfterSend() != null) getAfterSend().accept(player);
     }
 
     @Override

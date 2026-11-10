@@ -99,6 +99,10 @@ public class Timer {
         return extraTimeUnit;
     }
 
+    /**
+     * {@link #setTicks(int)} 允许的最大剩余 tick。普通计时器即基准时长，{@link #reset()} 也复位到这个值；
+     * 带随机偏移的子类会放大它（见 {@link RandomizedTimer#getMaxTicks()}）。
+     */
     public int getMaxTicks() {
         return getTime() * getTimeUnit().getDurationTicks();
     }
