@@ -29,7 +29,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MentalStatusMixin {
     @Shadow private ServerPlayer player;
 
-    @Unique private MentalIllnessStatus dtt$lastTickMentalIllnessStatus = MentalIllnessStatus.HEALTHY;
+    // 上一有效病情。NONE 表示"没有可比较的有效病情"（尚未建立基线、存档里是 none 或未知串、疾病 ID 未识别），
+    // 它不等于 HEALTHY，也不参与恶化/好转比较。初值必须是 NONE：默认 HEALTHY 会把首次观察到的
+    // mdd_patient / bd_patient 等已有疾病误记成 HEALTHY→严重疾病（假 WORSENED）。
+    // 同时它必须保持非 null，初始化前 writeNbt 才能取到名称。
+    @Unique private MentalIllnessStatus dtt$lastTickMentalIllnessStatus = MentalIllnessStatus.NONE;
     @Unique private boolean dtt$lastTickIsInCombatState = false;
     @Unique private boolean dtt$lastTickIsManicPhase = false;
 
@@ -134,6 +138,19 @@ public class MentalStatusMixin {
         MentalIllnessStatus currentIllness = MentalIllnessStatus.from(self);
 
         if (dtt$lastTickMentalIllnessStatus == null) {
+            // 防御：正常状态机不会让它为 null，兜底同样只建立基线（current 也可以是 NONE）
+            dtt$lastTickMentalIllnessStatus = currentIllness;
+            return;
+        }
+
+        if (currentIllness == MentalIllnessStatus.NONE) {
+            // 当前没有可比较的有效病情（疾病 ID 未识别 / 取不到 MentalStatus 等）：
+            // 本次不发事件，也不覆盖上一有效病情，避免下游拿 NONE 做恶化/好转比较
+            return;
+        }
+
+        if (dtt$lastTickMentalIllnessStatus == MentalIllnessStatus.NONE) {
+            // 上一状态是 NONE（首次观察 / 存档是 none 或未知串）：只建立基线，本次不发事件
             dtt$lastTickMentalIllnessStatus = currentIllness;
             return;
         }
